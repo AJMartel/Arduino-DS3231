@@ -27,6 +27,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "WProgram.h"
 #endif
 
+#include <Wire.h>
+
 #define DS3231_ADDRESS              (0x68)
 
 #define DS3231_REG_TIME             (0x00)
@@ -35,6 +37,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define DS3231_REG_CONTROL          (0x0E)
 #define DS3231_REG_STATUS           (0x0F)
 #define DS3231_REG_TEMPERATURE      (0x11)
+
+#define BASE_YEAR				2000UL
+#define LEAP_YEAR(Y)	(((BASE_YEAR + Y) > 0) && !((BASE_YEAR + Y) % 4) && (((BASE_YEAR + Y) % 100) || !((BASE_YEAR + Y) % 400)))
+
+const uint8_t daysArray[] PROGMEM = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+const uint8_t dowArray[] PROGMEM = { 0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4 };
 
 #ifndef RTCDATETIME_STRUCT_H
 #define RTCDATETIME_STRUCT_H
@@ -145,7 +153,6 @@ class DS3231
 	uint16_t date2days(uint16_t year, uint8_t month, uint8_t day);
 	uint8_t daysInMonth(uint16_t year, uint8_t month);
 	uint16_t dayInYear(uint16_t year, uint8_t month, uint8_t day);
-	bool isLeapYear(uint16_t year);
 	uint8_t dow(uint16_t y, uint8_t m, uint8_t d);
 
 	uint32_t unixtime(void);

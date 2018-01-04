@@ -18,17 +18,7 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#if ARDUINO >= 100
-#include "Arduino.h"
-#else
-#include "WProgram.h"
-#endif
-
-#include <Wire.h>
 #include "DS3231.h"
-
-const uint8_t daysArray [] PROGMEM = { 31,28,31,30,31,30,31,31,30,31,30,31 };
-const uint8_t dowArray[] PROGMEM = { 0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4 };
 
 bool DS3231::begin(void)
 {
@@ -43,7 +33,7 @@ bool DS3231::begin(void)
     t.minute = 0;
     t.second = 0;
     t.dayOfWeek = 6;
-    t.unixtime = 946681200;
+    t.unixtime = 946684800;
 
     return true;
 }
@@ -87,7 +77,7 @@ void DS3231::setDateTime(uint16_t year, uint8_t month, uint8_t day, uint8_t hour
 
 void DS3231::setDateTime(uint32_t t)
 {
-    t -= 946681200;
+    t -= 946684800;
 
     uint16_t year;
     uint8_t month;
@@ -104,23 +94,21 @@ void DS3231::setDateTime(uint32_t t)
 
     hour = t % 24;
     uint16_t days = t / 24;
-    uint8_t leap;
 
     for (year = 0; ; ++year)
     {
-        leap = year % 4 == 0;
-        if (days < 365 + leap)
+        if (days < 365 + LEAP_YEAR(year))
         {
             break;
         }
-        days -= 365 + leap;
+        days -= 365 + LEAP_YEAR(year);
     }
 
     for (month = 1; ; ++month)
     {
         uint8_t daysPerMonth = pgm_read_byte(daysArray + month - 1);
 
-        if (leap && month == 2)
+        if (LEAP_YEAR(year) && month == 2)
         {
             ++daysPerMonth;
         }
@@ -240,7 +228,7 @@ char* DS3231::dateFormat(const char* dateFormat, RTCDateTime dt)
                 strcat(buffer, (const char *)helper);
                 break;
             case 'L':
-                sprintf(helper, "%d", isLeapYear(dt.year)); 
+                sprintf(helper, "%d", LEAP_YEAR(dt.year)); 
                 strcat(buffer, (const char *)helper); 
                 break;
 
@@ -1098,18 +1086,13 @@ uint16_t DS3231::dayInYear(uint16_t year, uint8_t month, uint8_t day)
     return (toDate - fromDate);
 }
 
-bool DS3231::isLeapYear(uint16_t year)
-{
-    return (year % 4 == 0);
-}
-
 uint8_t DS3231::daysInMonth(uint16_t year, uint8_t month)
 {
     uint8_t days;
 
     days = pgm_read_byte(daysArray + month - 1);
 
-    if ((month == 2) && isLeapYear(year))
+    if ((month == 2) && LEAP_YEAR(year))
     {
         ++days;
     }
@@ -1128,12 +1111,12 @@ uint16_t DS3231::date2days(uint16_t year, uint8_t month, uint8_t day)
         days16 += pgm_read_byte(daysArray + i - 1);
     }
 
-    if ((month == 2) && isLeapYear(year))
+    if ((month == 2) && LEAP_YEAR(year))
     {
         ++days16;
     }
 
-    return days16 + 365 * year + (year + 3) / 4 - 1;
+    return days16 + 365 * year + (year + 3) / 4;
 }
 
 uint32_t DS3231::unixtime(void)
@@ -1141,7 +1124,7 @@ uint32_t DS3231::unixtime(void)
     uint32_t u;
 
     u = time2long(date2days(t.year, t.month, t.day), t.hour, t.minute, t.second);
-    u += 946681200;
+    u += 946684800;
 
     return u;
 }
