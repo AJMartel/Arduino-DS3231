@@ -18,15 +18,12 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef DS3231_h
-#define DS3231_h
+#pragma once
 
-#if ARDUINO >= 100
-#include "Arduino.h"
-#else
-#include "WProgram.h"
-#endif
+#ifndef _DS3231_h
+#define _DS3231_h
 
+#include <Arduino.h>
 #include <Wire.h>
 
 #define DS3231_ADDRESS              (0x68)
@@ -94,7 +91,7 @@ typedef enum
     DS3231_MATCH_DY_H_M   = 0b00010000
 } DS3231_alarm2_t;
 
-class DS3231
+class DS3231Class
 {
     public:
 
