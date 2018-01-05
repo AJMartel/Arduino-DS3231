@@ -38,7 +38,7 @@ void DS3231Class::SetDateTime(sDateTime & pDateTime)
     WireWrite(dec2bcd(pDateTime.second));
     WireWrite(dec2bcd(pDateTime.minute));
     WireWrite(dec2bcd(pDateTime.hour));
-    WireWrite(dec2bcd(getDayOfWeek(pDateTime.year, pDateTime.month, pDateTime.day)));
+    WireWrite(dec2bcd(GetDayOfWeek(pDateTime.year, pDateTime.month, pDateTime.day))); // 0 is sunday
     WireWrite(dec2bcd(pDateTime.day));
     WireWrite(dec2bcd(pDateTime.month));
     WireWrite(dec2bcd(pDateTime.year - 2000));
@@ -95,7 +95,7 @@ void DS3231Class::ParseStrDateTime(sDateTime & pDateTime, char pStrDateTime[])
         pDateTime.minute = atoi(aux);
         memcpy(aux, &pStrDateTime[17], 2);
         pDateTime.second = atoi(aux);
-        pDateTime.dayOfWeek = getDayOfWeek(pDateTime.year, pDateTime.month, pDateTime.day);
+        pDateTime.dayOfWeek = GetDayOfWeek(pDateTime.year, pDateTime.month, pDateTime.day);
     }
 }
 
@@ -665,20 +665,15 @@ void DS3231Class::SetBattery(bool timeBattery, bool squareBattery)
     writeRegister8(DS3231_REG_CONTROL, value);
 }
 
-uint8_t DS3231Class::getDayOfWeek(uint16_t pYear, uint8_t pMonth, uint8_t pDay)
+/* Calculate day of week in proleptic Gregorian calendar. Sunday == 0. */
+uint8_t DS3231Class::GetDayOfWeek(uint16_t pYear, uint8_t pMonth, uint8_t pDay)
 {
-    uint8_t dow;
+    int adjustment, mm, yy;
 
-    pYear -= pMonth < 3;
-    dow = (pYear + pYear / 4 - pYear / 100 + pYear / 400 + pDay +
-        pgm_read_byte(SCHWERDTFEGER + (pMonth - 1))) % 7;
-
-    if (dow == 0)
-    {
-        return 7;
-    }
-
-    return dow;
+    adjustment = (14 - pMonth) / 12;
+    mm = pMonth + 12 * adjustment - 2;
+    yy = pYear - adjustment;
+    return (pDay + (13 * mm - 1) / 5 + yy + yy / 4 - yy / 100 + yy / 400) % 7;
 }
 
 uint8_t DS3231Class::bcd2dec(uint8_t bcd)

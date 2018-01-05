@@ -114,6 +114,7 @@ public:
     static void ParseStrDateTime(sDateTime & pDateTime, char pStrDateTime[]); // Parse from ISO 8601 string format to sDateTime
     static void ConvertToSeconds(uint32_t & pSeconds, sDateTime & pDateTime); // Convert from sDateTime to number of seconds since Jan 1st of 2000
     static void ConvertToDateTime(sDateTime & pDateTime, uint32_t pSeconds); // Convert from number of seconds since beginning of 2000 to sDateTime
+    static uint8_t GetDayOfWeek(uint16_t pYear, uint8_t pMonth, uint8_t pDay);
 
     void SetAlarm1(uint8_t dydw, uint8_t hour, uint8_t minute, uint8_t second, eDS3231_alarm1_t mode, bool armed = true);
     void GetAlarm1(sAlarmTime & pAlarmTime);
@@ -159,8 +160,6 @@ private:
         Wire.send(data);
 #endif
     };
-
-    static uint8_t getDayOfWeek(uint16_t pYear, uint8_t pMonth, uint8_t pDay);
 
     static uint8_t bcd2dec(uint8_t bcd);
     static uint8_t dec2bcd(uint8_t dec);
