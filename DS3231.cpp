@@ -20,547 +20,197 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "DS3231.h"
 
-bool DS3231Class::begin(void)
+bool DS3231Class::Begin(void)
 {
     Wire.begin();
 
-    setBattery(true, false);
-
-    t.year = 2000;
-    t.month = 1;
-    t.day = 1;
-    t.hour = 0;
-    t.minute = 0;
-    t.second = 0;
-    t.dayOfWeek = 6;
-    t.unixtime = 946684800;
+    SetBattery(true, false);
 
     return true;
 }
 
-void DS3231Class::setDateTime(uint16_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute, uint8_t second)
+void DS3231Class::SetDateTime(sDateTime & pDateTime)
 {
     Wire.beginTransmission(DS3231_ADDRESS);
 
-    #if ARDUINO >= 100
-        Wire.write(DS3231_REG_TIME);
-    #else
-        Wire.send(DS3231_REG_TIME);
-    #endif
+    WireWrite(DS3231_REG_TIME);
 
-    #if ARDUINO >= 100
-        Wire.write(dec2bcd(second));
-        Wire.write(dec2bcd(minute));
-        Wire.write(dec2bcd(hour));
-        Wire.write(dec2bcd(dow(year, month, day)));
-        Wire.write(dec2bcd(day));
-        Wire.write(dec2bcd(month));
-        Wire.write(dec2bcd(year-2000));
-    #else
-        Wire.send(dec2bcd(second));
-        Wire.send(dec2bcd(minute));
-        Wire.send(dec2bcd(hour));
-        Wire.send(dec2bcd(dow(year, month, day)));
-        Wire.send(dec2bcd(day));
-        Wire.send(dec2bcd(month));
-        Wire.send(dec2bcd(year-2000));
-    #endif
+    WireWrite(dec2bcd(pDateTime.second));
+    WireWrite(dec2bcd(pDateTime.minute));
+    WireWrite(dec2bcd(pDateTime.hour));
+    WireWrite(dec2bcd(getDayOfWeek(pDateTime.year, pDateTime.month, pDateTime.day)));
+    WireWrite(dec2bcd(pDateTime.day));
+    WireWrite(dec2bcd(pDateTime.month));
+    WireWrite(dec2bcd(pDateTime.year - 2000));
 
-    #if ARDUINO >= 100
-        Wire.write(DS3231_REG_TIME);
-    #else
-        Wire.send(DS3231_REG_TIME);
-    #endif
+    WireWrite(DS3231_REG_TIME);
 
     Wire.endTransmission();
 }
 
-void DS3231Class::setDateTime(uint32_t t)
-{
-    t -= 946684800;
-
-    uint16_t year;
-    uint8_t month;
-    uint8_t day;
-    uint8_t hour;
-    uint8_t minute;
-    uint8_t second;
-
-    second = t % 60;
-    t /= 60;
-
-    minute = t % 60;
-    t /= 60;
-
-    hour = t % 24;
-    uint16_t days = t / 24;
-
-    for (year = 0; ; ++year)
-    {
-        if (days < 365 + LEAP_YEAR(year))
-        {
-            break;
-        }
-        days -= 365 + LEAP_YEAR(year);
-    }
-
-    for (month = 1; ; ++month)
-    {
-        uint8_t daysPerMonth = pgm_read_byte(daysArray + month - 1);
-
-        if (LEAP_YEAR(year) && month == 2)
-        {
-            ++daysPerMonth;
-        }
-
-        if (days < daysPerMonth)
-        {
-            break;
-        }
-        days -= daysPerMonth;
-    }
-
-    day = days + 1;
-
-    setDateTime(year+2000, month, day, hour, minute, second);
-}
-
-void DS3231Class::setDateTime(const char* date, const char* time)
-{
-    uint16_t year;
-    uint8_t month;
-    uint8_t day;
-    uint8_t hour;
-    uint8_t minute;
-    uint8_t second;
-
-    year = conv2d(date + 9);
-
-    switch (date[0])
-    {
-        case 'J': month = date[1] == 'a' ? 1 : month = date[2] == 'n' ? 6 : 7; break;
-        case 'F': month = 2; break;
-        case 'A': month = date[2] == 'r' ? 4 : 8; break;
-        case 'M': month = date[2] == 'r' ? 3 : 5; break;
-        case 'S': month = 9; break;
-        case 'O': month = 10; break;
-        case 'N': month = 11; break;
-        case 'D': month = 12; break;
-    }
-
-    day = conv2d(date + 4);
-    hour = conv2d(time);
-    minute = conv2d(time + 3);
-    second = conv2d(time + 6);
-
-    setDateTime(year+2000, month, day, hour, minute, second);
-}
-
-char* DS3231Class::dateFormat(const char* dateFormat, RTCDateTime dt)
-{
-    char buffer[255];
-
-    buffer[0] = 0;
-
-    char helper[11];
-
-    while (*dateFormat != '\0')
-    {
-        switch (dateFormat[0])
-        {
-            // Day decoder
-            case 'd':
-                sprintf(helper, "%02d", dt.day); 
-                strcat(buffer, (const char *)helper); 
-                break;
-            case 'j':
-                sprintf(helper, "%d", dt.day);
-                strcat(buffer, (const char *)helper);
-                break;
-            case 'l':
-                strcat(buffer, (const char *)strDayOfWeek(dt.dayOfWeek));
-                break;
-            case 'D':
-                strncat(buffer, strDayOfWeek(dt.dayOfWeek), 3);
-                break;
-            case 'N':
-                sprintf(helper, "%d", dt.dayOfWeek);
-                strcat(buffer, (const char *)helper);
-                break;
-            case 'w':
-                sprintf(helper, "%d", (dt.dayOfWeek + 7) % 7);
-                strcat(buffer, (const char *)helper);
-                break;
-            case 'z':
-                sprintf(helper, "%d", dayInYear(dt.year, dt.month, dt.day));
-                strcat(buffer, (const char *)helper);
-                break;
-            case 'S':
-                strcat(buffer, (const char *)strDaySufix(dt.day));
-                break;
-
-            // Month decoder
-            case 'm':
-                sprintf(helper, "%02d", dt.month);
-                strcat(buffer, (const char *)helper);
-                break;
-            case 'n':
-                sprintf(helper, "%d", dt.month);
-                strcat(buffer, (const char *)helper);
-                break;
-            case 'F':
-                strcat(buffer, (const char *)strMonth(dt.month));
-                break;
-            case 'M':
-                strncat(buffer, (const char *)strMonth(dt.month), 3);
-                break;
-            case 't':
-                sprintf(helper, "%d", daysInMonth(dt.year, dt.month));
-                strcat(buffer, (const char *)helper);
-                break;
-
-            // Year decoder
-            case 'Y':
-                sprintf(helper, "%d", dt.year); 
-                strcat(buffer, (const char *)helper); 
-                break;
-            case 'y': sprintf(helper, "%02d", dt.year-2000);
-                strcat(buffer, (const char *)helper);
-                break;
-            case 'L':
-                sprintf(helper, "%d", LEAP_YEAR(dt.year)); 
-                strcat(buffer, (const char *)helper); 
-                break;
-
-            // Hour decoder
-            case 'H':
-                sprintf(helper, "%02d", dt.hour);
-                strcat(buffer, (const char *)helper);
-                break;
-            case 'G':
-                sprintf(helper, "%d", dt.hour);
-                strcat(buffer, (const char *)helper);
-                break;
-            case 'h':
-                sprintf(helper, "%02d", hour12(dt.hour));
-                strcat(buffer, (const char *)helper);
-                break;
-            case 'g':
-                sprintf(helper, "%d", hour12(dt.hour));
-                strcat(buffer, (const char *)helper);
-                break;
-            case 'A':
-                strcat(buffer, (const char *)strAmPm(dt.hour, true));
-                break;
-            case 'a':
-                strcat(buffer, (const char *)strAmPm(dt.hour, false));
-                break;
-
-            // Minute decoder
-            case 'i': 
-                sprintf(helper, "%02d", dt.minute);
-                strcat(buffer, (const char *)helper);
-                break;
-
-            // Second decoder
-            case 's':
-                sprintf(helper, "%02d", dt.second); 
-                strcat(buffer, (const char *)helper); 
-                break;
-
-            // Misc decoder
-            case 'U': 
-                sprintf(helper, "%lu", dt.unixtime);
-                strcat(buffer, (const char *)helper);
-                break;
-
-            default: 
-                strncat(buffer, dateFormat, 1);
-                break;
-        }
-        dateFormat++;
-    }
-
-    return buffer;
-}
-
-char* DS3231Class::dateFormat(const char* dateFormat, RTCAlarmTime dt)
-{
-    char buffer[255];
-
-    buffer[0] = 0;
-
-    char helper[11];
-
-    while (*dateFormat != '\0')
-    {
-        switch (dateFormat[0])
-        {
-            // Day decoder
-            case 'd':
-                sprintf(helper, "%02d", dt.day); 
-                strcat(buffer, (const char *)helper); 
-                break;
-            case 'j':
-                sprintf(helper, "%d", dt.day);
-                strcat(buffer, (const char *)helper);
-                break;
-            case 'l':
-                strcat(buffer, (const char *)strDayOfWeek(dt.day));
-                break;
-            case 'D':
-                strncat(buffer, strDayOfWeek(dt.day), 3);
-                break;
-            case 'N':
-                sprintf(helper, "%d", dt.day);
-                strcat(buffer, (const char *)helper);
-                break;
-            case 'w':
-                sprintf(helper, "%d", (dt.day + 7) % 7);
-                strcat(buffer, (const char *)helper);
-                break;
-            case 'S':
-                strcat(buffer, (const char *)strDaySufix(dt.day));
-                break;
-
-            // Hour decoder
-            case 'H':
-                sprintf(helper, "%02d", dt.hour);
-                strcat(buffer, (const char *)helper);
-                break;
-            case 'G':
-                sprintf(helper, "%d", dt.hour);
-                strcat(buffer, (const char *)helper);
-                break;
-            case 'h':
-                sprintf(helper, "%02d", hour12(dt.hour));
-                strcat(buffer, (const char *)helper);
-                break;
-            case 'g':
-                sprintf(helper, "%d", hour12(dt.hour));
-                strcat(buffer, (const char *)helper);
-                break;
-            case 'A':
-                strcat(buffer, (const char *)strAmPm(dt.hour, true));
-                break;
-            case 'a':
-                strcat(buffer, (const char *)strAmPm(dt.hour, false));
-                break;
-
-            // Minute decoder
-            case 'i': 
-                sprintf(helper, "%02d", dt.minute);
-                strcat(buffer, (const char *)helper);
-                break;
-
-            // Second decoder
-            case 's':
-                sprintf(helper, "%02d", dt.second); 
-                strcat(buffer, (const char *)helper); 
-                break;
-
-            default: 
-                strncat(buffer, dateFormat, 1);
-                break;
-        }
-        dateFormat++;
-    }
-
-    return buffer;
-}
-
-RTCDateTime DS3231Class::getDateTime(void)
+void DS3231Class::GetDateTime(sDateTime & pDateTime)
 {
     int values[7];
 
     Wire.beginTransmission(DS3231_ADDRESS);
-    #if ARDUINO >= 100
-        Wire.write(DS3231_REG_TIME);
-    #else
-        Wire.send(DS3231_REG_TIME);
-    #endif
+    WireWrite(DS3231_REG_TIME);
     Wire.endTransmission();
 
     Wire.requestFrom(DS3231_ADDRESS, 7);
 
     while(!Wire.available()) {};
 
-    for (int i = 6; i >= 0; i--)
+    for (uint8_t i = 0; i < 7; i++)
     {
-        #if ARDUINO >= 100
-            values[i] = bcd2dec(Wire.read());
-        #else
-            values[i] = bcd2dec(Wire.receive());
-        #endif
+        values[i] = bcd2dec(WireRead());
     }
 
     Wire.endTransmission();
 
-    t.year = values[0] + 2000;
-    t.month = values[1];
-    t.day = values[2];
-    t.dayOfWeek = values[3];
-    t.hour = values[4];
-    t.minute = values[5];
-    t.second = values[6];
-    t.unixtime = unixtime();
-
-    return t;
+    pDateTime.second    = values[0];
+    pDateTime.minute    = values[1];
+    pDateTime.hour      = values[2];
+    pDateTime.dayOfWeek = values[3];
+    pDateTime.day       = values[4];
+    pDateTime.month     = values[5];
+    pDateTime.year      = values[6] + 2000;
 }
 
-uint8_t DS3231Class::isReady(void) 
+void DS3231Class::ParseStrDateTime(sDateTime & pDateTime, char pStrDateTime[])
 {
-    return true;
-}
+    char aux[5];
 
-void DS3231Class::enableOutput(bool enabled)
-{
-    uint8_t value;
-
-    value = readRegister8(DS3231_REG_CONTROL);
-
-    value &= 0b11111011;
-    value |= (!enabled << 2);
-
-    writeRegister8(DS3231_REG_CONTROL, value);
-}
-
-void DS3231Class::setBattery(bool timeBattery, bool squareBattery)
-{
-    uint8_t value;
-
-    value = readRegister8(DS3231_REG_CONTROL);
-
-    if (squareBattery)
+    if ((pStrDateTime[10] == 'T') && ((pStrDateTime[19] == 'Z') || (pStrDateTime[23] == 'Z')))
     {
-        value |= 0b01000000;
-    } else
+        memcpy(aux, pStrDateTime, 4);
+        pDateTime.year = atoi(aux);
+        memset(aux, 0x00, 5);
+        memcpy(aux, &pStrDateTime[5], 2);
+        pDateTime.month = atoi(aux);
+        memcpy(aux, &pStrDateTime[8], 2);
+        pDateTime.day = atoi(aux);
+        memcpy(aux, &pStrDateTime[11], 2);
+        pDateTime.hour = atoi(aux);
+        memcpy(aux, &pStrDateTime[14], 2);
+        pDateTime.minute = atoi(aux);
+        memcpy(aux, &pStrDateTime[17], 2);
+        pDateTime.second = atoi(aux);
+        pDateTime.dayOfWeek = getDayOfWeek(pDateTime.year, pDateTime.month, pDateTime.day);
+    }
+}
+
+void DS3231Class::ConvertToSeconds(uint32_t & pSeconds, sDateTime & pDateTime)
+{
+    int i;
+    int16_t year = pDateTime.year - 2000;
+
+    // seconds from 2000 till 1st jan 00:00:00 of the given year
+    pSeconds = year * SECS_PER_YEAR;
+    for (i = 0; i < year; i++)
     {
-        value &= 0b10111111;
+        if (LEAP_YEAR(i))
+        {
+            pSeconds += SECS_PER_DAY;
+        }
     }
 
-    if (timeBattery)
+    // add days for this actual year passed on datetime, months start from 1
+    for (i = 1; i < pDateTime.month; i++)
     {
-        value &= 0b01111011;
-    } else
-    {
-        value |= 0b10000000;
+        switch (pgm_read_byte(MONTH_DAYS + i - 1))
+        {
+        case 28:
+            if (LEAP_YEAR(year))
+                pSeconds += SECS_FEB_LEAP;
+            else
+                pSeconds += SECS_FEB;
+            break;
+        case 30:
+            pSeconds += SECS_PER_MONTH_EVEN;
+            break;
+        case 31:
+            pSeconds += SECS_PER_MONTH_ODD;
+            break;
+        default:
+            break;
+        }
     }
 
-    writeRegister8(DS3231_REG_CONTROL, value);
+    pSeconds += (pDateTime.day - 1) * SECS_PER_DAY;
+    pSeconds += pDateTime.hour * SECS_PER_HOUR;
+    pSeconds += pDateTime.minute * SECS_PER_MIN;
+    pSeconds += pDateTime.second;
 }
 
-bool DS3231Class::isOutput(void)
+void DS3231Class::ConvertToDateTime(sDateTime & pDateTime, uint32_t pSeconds)
 {
-    uint8_t value;
+    uint8_t year;
+    uint8_t month, monthLength;
+    uint32_t time;
+    uint16_t days;
 
-    value = readRegister8(DS3231_REG_CONTROL);
+    /*sprintf(lBuffer, "RTC has been set %lu.", (uint32_t)RTCTimer.Time);
+    SerialInterpreter.Send(lBuffer);*/
 
-    value &= 0b00000100;
-    value >>= 2;
+    time = (uint32_t)pSeconds;
+    pDateTime.second = time % 60;
+    time /= 60; // now it is minutes
+    pDateTime.minute = time % 60;
+    time /= 60; // now it is hours
+    pDateTime.hour = time % 24;
+    time /= 24; // now it is days
+    pDateTime.dayOfWeek = ((time + 4) % 7) + 1;  // Sunday is day 1 
 
-    return !value;
+    year = 0;
+    days = 0;
+    for (;;)
+    {
+        days += (LEAP_YEAR(year) ? 366 : 365);
+        if (days < time)
+            year++;
+        else
+            break;
+    }
+    pDateTime.year = year + 2000; // year is offset from 2000 
+
+    days -= (LEAP_YEAR(year) ? 366 : 365);
+    time -= days; // now it is days in this year, starting at 0
+
+    days = 0;
+    month = 0;
+    monthLength = 0;
+
+    for (month = 0; month < 12; month++)
+    {
+        if ((month == 1) && (LEAP_YEAR(year)))
+        {
+            monthLength = 29;
+        }
+        else
+        {
+            monthLength = pgm_read_byte(MONTH_DAYS + month);
+        }
+
+        if (time >= monthLength)
+        {
+            time -= monthLength;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    pDateTime.month = month + 1;  // jan is month 1  
+    pDateTime.day = time + 1;     // day of month
 }
 
-void DS3231Class::setOutput(DS3231_sqw_t mode)
-{
-    uint8_t value;
-
-    value = readRegister8(DS3231_REG_CONTROL);
-
-    value &= 0b11100111;
-    value |= (mode << 3);
-
-    writeRegister8(DS3231_REG_CONTROL, value);
-}
-
-DS3231_sqw_t DS3231Class::getOutput(void)
-{
-    uint8_t value;
-
-    value = readRegister8(DS3231_REG_CONTROL);
-
-    value &= 0b00011000;
-    value >>= 3;
-
-    return (DS3231_sqw_t)value;
-}
-
-void DS3231Class::enable32kHz(bool enabled)
-{
-    uint8_t value;
-
-    value = readRegister8(DS3231_REG_STATUS);
-
-    value &= 0b11110111;
-    value |= (enabled << 3);
-
-    writeRegister8(DS3231_REG_STATUS, value);
-}
-
-bool DS3231Class::is32kHz(void)
-{
-    uint8_t value;
-
-    value = readRegister8(DS3231_REG_STATUS);
-
-    value &= 0b00001000;
-    value >>= 3;
-
-    return value;
-}
-
-void DS3231Class::forceConversion(void)
-{
-    uint8_t value;
-
-    value = readRegister8(DS3231_REG_CONTROL);
-
-    value |= 0b00100000;
-
-    writeRegister8(DS3231_REG_CONTROL, value);
-
-    do {} while ((readRegister8(DS3231_REG_CONTROL) & 0b00100000) != 0);
-}
-
-float DS3231Class::readTemperature(void)
-{
-    uint8_t msb, lsb;
-
-    Wire.beginTransmission(DS3231_ADDRESS);
-    #if ARDUINO >= 100
-        Wire.write(DS3231_REG_TEMPERATURE);
-    #else
-        Wire.send(DS3231_REG_TEMPERATURE);
-    #endif
-    Wire.endTransmission();
-
-    Wire.requestFrom(DS3231_ADDRESS, 2);
-
-    while(!Wire.available()) {};
-
-    #if ARDUINO >= 100
-    msb = Wire.read();
-    lsb = Wire.read();
-    #else
-    msb = Wire.receive();
-    lsb = Wire.receive();
-    #endif
-
-    return ((((short)msb << 8) | (short)lsb) >> 6) / 4.0f;
-}
-
-RTCAlarmTime DS3231Class::getAlarm1(void)
+void DS3231Class::GetAlarm1(sAlarmTime & pAlarmTime)
 {
     uint8_t values[4];
-    RTCAlarmTime a;
 
     Wire.beginTransmission(DS3231_ADDRESS);
-    #if ARDUINO >= 100
-        Wire.write(DS3231_REG_ALARM_1);
-    #else
-        Wire.send(DS3231_REG_ALARM_1);
-    #endif
+    WireWrite(DS3231_REG_ALARM_1);
     Wire.endTransmission();
 
     Wire.requestFrom(DS3231_ADDRESS, 4);
@@ -569,34 +219,24 @@ RTCAlarmTime DS3231Class::getAlarm1(void)
 
     for (int i = 3; i >= 0; i--)
     {
-        #if ARDUINO >= 100
-            values[i] = bcd2dec(Wire.read() & 0b01111111);
-        #else
-            values[i] = bcd2dec(Wire.receive() & 0b01111111);
-        #endif
+        values[i] = bcd2dec(WireRead() & 0b01111111);
     }
 
     Wire.endTransmission();
 
-    a.day = values[0];
-    a.hour = values[1];
-    a.minute = values[2];
-    a.second = values[3];
-
-    return a;
+    pAlarmTime.day = values[0];
+    pAlarmTime.hour = values[1];
+    pAlarmTime.minute = values[2];
+    pAlarmTime.second = values[3];
 }
 
-DS3231_alarm1_t DS3231Class::getAlarmType1(void)
+void DS3231Class::GetAlarmType1(eDS3231_alarm1_t & pDS3231_alarm1_t)
 {
     uint8_t values[4];
     uint8_t mode = 0;
 
     Wire.beginTransmission(DS3231_ADDRESS);
-    #if ARDUINO >= 100
-        Wire.write(DS3231_REG_ALARM_1);
-    #else
-        Wire.send(DS3231_REG_ALARM_1);
-    #endif
+    WireWrite(DS3231_REG_ALARM_1);
     Wire.endTransmission();
 
     Wire.requestFrom(DS3231_ADDRESS, 4);
@@ -605,11 +245,7 @@ DS3231_alarm1_t DS3231Class::getAlarmType1(void)
 
     for (int i = 3; i >= 0; i--)
     {
-        #if ARDUINO >= 100
-            values[i] = bcd2dec(Wire.read());
-        #else
-            values[i] = bcd2dec(Wire.receive());
-        #endif
+        values[i] = bcd2dec(WireRead());
     }
 
     Wire.endTransmission();
@@ -620,10 +256,10 @@ DS3231_alarm1_t DS3231Class::getAlarmType1(void)
     mode |= ((values[0] & 0b01000000) >> 3);
     mode |= ((values[0] & 0b00100000) >> 1);
 
-    return (DS3231_alarm1_t)mode;
+    pDS3231_alarm1_t = (eDS3231_alarm1_t)mode;
 }
 
-void DS3231Class::setAlarm1(uint8_t dydw, uint8_t hour, uint8_t minute, uint8_t second, DS3231_alarm1_t mode, bool armed)
+void DS3231Class::SetAlarm1(uint8_t dydw, uint8_t hour, uint8_t minute, uint8_t second, eDS3231_alarm1_t mode, bool armed)
 {
     second = dec2bcd(second);
     minute = dec2bcd(minute);
@@ -677,28 +313,19 @@ void DS3231Class::setAlarm1(uint8_t dydw, uint8_t hour, uint8_t minute, uint8_t 
     }
 
     Wire.beginTransmission(DS3231_ADDRESS);
-    #if ARDUINO >= 100
-        Wire.write(DS3231_REG_ALARM_1);
-        Wire.write(second);
-        Wire.write(minute);
-        Wire.write(hour);
-        Wire.write(dydw);
-    #else
-        Wire.send(DS3231_REG_ALARM_1);
-        Wire.send(second);
-        Wire.send(minute);
-        Wire.send(hour);
-        Wire.send(dydw);
-    #endif
-
+    WireWrite(DS3231_REG_ALARM_1);
+    WireWrite(second);
+    WireWrite(minute);
+    WireWrite(hour);
+    WireWrite(dydw);
     Wire.endTransmission();
 
-    armAlarm1(armed);
+    ArmAlarm1(armed);
 
-    clearAlarm1();
+    ClearAlarm1();
 }
 
-bool DS3231Class::isAlarm1(bool clear)
+bool DS3231Class::IsAlarm1(bool clear)
 {
     uint8_t alarm;
 
@@ -707,13 +334,13 @@ bool DS3231Class::isAlarm1(bool clear)
 
     if (alarm && clear)
     {
-        clearAlarm1();
+        ClearAlarm1();
     }
 
     return alarm;
 }
 
-void DS3231Class::armAlarm1(bool armed)
+void DS3231Class::ArmAlarm1(bool armed)
 {
     uint8_t value;
     value = readRegister8(DS3231_REG_CONTROL);
@@ -729,7 +356,7 @@ void DS3231Class::armAlarm1(bool armed)
     writeRegister8(DS3231_REG_CONTROL, value);
 }
 
-bool DS3231Class::isArmed1(void)
+bool DS3231Class::IsArmed1(void)
 {
     uint8_t value;
     value = readRegister8(DS3231_REG_CONTROL);
@@ -737,7 +364,7 @@ bool DS3231Class::isArmed1(void)
     return value;
 }
 
-void DS3231Class::clearAlarm1(void)
+void DS3231Class::ClearAlarm1(void)
 {
     uint8_t value;
 
@@ -747,17 +374,12 @@ void DS3231Class::clearAlarm1(void)
     writeRegister8(DS3231_REG_STATUS, value);
 }
 
-RTCAlarmTime DS3231Class::getAlarm2(void)
+void DS3231Class::GetAlarm2(sAlarmTime & pAlarmTime)
 {
     uint8_t values[3];
-    RTCAlarmTime a;
 
     Wire.beginTransmission(DS3231_ADDRESS);
-    #if ARDUINO >= 100
-        Wire.write(DS3231_REG_ALARM_2);
-    #else
-        Wire.send(DS3231_REG_ALARM_2);
-    #endif
+    WireWrite(DS3231_REG_ALARM_2);
     Wire.endTransmission();
 
     Wire.requestFrom(DS3231_ADDRESS, 3);
@@ -766,34 +388,24 @@ RTCAlarmTime DS3231Class::getAlarm2(void)
 
     for (int i = 2; i >= 0; i--)
     {
-        #if ARDUINO >= 100
-            values[i] = bcd2dec(Wire.read() & 0b01111111);
-        #else
-            values[i] = bcd2dec(Wire.receive() & 0b01111111);
-        #endif
+        values[i] = bcd2dec(WireRead() & 0b01111111);
     }
 
     Wire.endTransmission();
 
-    a.day = values[0];
-    a.hour = values[1];
-    a.minute = values[2];
-    a.second = 0;
-
-    return a;
+    pAlarmTime.day = values[0];
+    pAlarmTime.hour = values[1];
+    pAlarmTime.minute = values[2];
+    pAlarmTime.second = 0;
 }
 
-DS3231_alarm2_t DS3231Class::getAlarmType2(void)
+void DS3231Class::GetAlarmType2(eDS3231_alarm2_t & pDS3231_alarm2_t)
 {
     uint8_t values[3];
     uint8_t mode = 0;
 
     Wire.beginTransmission(DS3231_ADDRESS);
-    #if ARDUINO >= 100
-        Wire.write(DS3231_REG_ALARM_2);
-    #else
-        Wire.send(DS3231_REG_ALARM_2);
-    #endif
+    WireWrite(DS3231_REG_ALARM_2);
     Wire.endTransmission();
 
     Wire.requestFrom(DS3231_ADDRESS, 3);
@@ -802,11 +414,7 @@ DS3231_alarm2_t DS3231Class::getAlarmType2(void)
 
     for (int i = 2; i >= 0; i--)
     {
-        #if ARDUINO >= 100
-            values[i] = bcd2dec(Wire.read());
-        #else
-            values[i] = bcd2dec(Wire.receive());
-        #endif
+        values[i] = bcd2dec(WireRead());
     }
 
     Wire.endTransmission();
@@ -816,10 +424,10 @@ DS3231_alarm2_t DS3231Class::getAlarmType2(void)
     mode |= ((values[0] & 0b01000000) >> 3);
     mode |= ((values[0] & 0b00100000) >> 1);
 
-    return (DS3231_alarm2_t)mode;
+    pDS3231_alarm2_t = (eDS3231_alarm2_t)mode;
 }
 
-void DS3231Class::setAlarm2(uint8_t dydw, uint8_t hour, uint8_t minute, DS3231_alarm2_t mode, bool armed)
+void DS3231Class::SetAlarm2(uint8_t dydw, uint8_t hour, uint8_t minute, eDS3231_alarm2_t mode, bool armed)
 {
     minute = dec2bcd(minute);
     hour = dec2bcd(hour);
@@ -860,26 +468,18 @@ void DS3231Class::setAlarm2(uint8_t dydw, uint8_t hour, uint8_t minute, DS3231_a
     }
 
     Wire.beginTransmission(DS3231_ADDRESS);
-    #if ARDUINO >= 100
-        Wire.write(DS3231_REG_ALARM_2);
-        Wire.write(minute);
-        Wire.write(hour);
-        Wire.write(dydw);
-    #else
-        Wire.send(DS3231_REG_ALARM_2);
-        Wire.send(minute);
-        Wire.send(hour);
-        Wire.send(dydw);
-    #endif
-
+    WireWrite(DS3231_REG_ALARM_2);
+    WireWrite(minute);
+    WireWrite(hour);
+    WireWrite(dydw);
     Wire.endTransmission();
 
-    armAlarm2(armed);
+    ArmAlarm2(armed);
 
-    clearAlarm2();
+    ClearAlarm2();
 }
 
-void DS3231Class::armAlarm2(bool armed)
+void DS3231Class::ArmAlarm2(bool armed)
 {
     uint8_t value;
     value = readRegister8(DS3231_REG_CONTROL);
@@ -895,7 +495,7 @@ void DS3231Class::armAlarm2(bool armed)
     writeRegister8(DS3231_REG_CONTROL, value);
 }
 
-bool DS3231Class::isArmed2(void)
+bool DS3231Class::IsArmed2(void)
 {
     uint8_t value;
     value = readRegister8(DS3231_REG_CONTROL);
@@ -904,7 +504,7 @@ bool DS3231Class::isArmed2(void)
     return value;
 }
 
-void DS3231Class::clearAlarm2(void)
+void DS3231Class::ClearAlarm2(void)
 {
     uint8_t value;
 
@@ -914,7 +514,7 @@ void DS3231Class::clearAlarm2(void)
     writeRegister8(DS3231_REG_STATUS, value);
 }
 
-bool DS3231Class::isAlarm2(bool clear)
+bool DS3231Class::IsAlarm2(bool clear)
 {
     uint8_t alarm;
 
@@ -923,10 +523,160 @@ bool DS3231Class::isAlarm2(bool clear)
 
     if (alarm && clear)
     {
-        clearAlarm2();
+        ClearAlarm2();
     }
 
     return alarm;
+}
+
+void DS3231Class::GetOutput(eDS3231_sqw_t &pMode)
+{
+    uint8_t value;
+
+    value = readRegister8(DS3231_REG_CONTROL);
+
+    value &= 0b00011000;
+    value >>= 3;
+
+    pMode = (eDS3231_sqw_t)value;
+}
+
+void DS3231Class::SetOutput(eDS3231_sqw_t mode)
+{
+    uint8_t value;
+
+    value = readRegister8(DS3231_REG_CONTROL);
+
+    value &= 0b11100111;
+    value |= (mode << 3);
+
+    writeRegister8(DS3231_REG_CONTROL, value);
+}
+
+void DS3231Class::EnableOutput(bool enabled)
+{
+    uint8_t value;
+
+    value = readRegister8(DS3231_REG_CONTROL);
+
+    value &= 0b11111011;
+    value |= (!enabled << 2);
+
+    writeRegister8(DS3231_REG_CONTROL, value);
+}
+
+bool DS3231Class::IsOutput(void)
+{
+    uint8_t value;
+
+    value = readRegister8(DS3231_REG_CONTROL);
+
+    value &= 0b00000100;
+    value >>= 2;
+
+    return !value;
+}
+
+void DS3231Class::Enable32kHz(bool enabled)
+{
+    uint8_t value;
+
+    value = readRegister8(DS3231_REG_STATUS);
+
+    value &= 0b11110111;
+    value |= (enabled << 3);
+
+    writeRegister8(DS3231_REG_STATUS, value);
+}
+
+bool DS3231Class::Is32kHz(void)
+{
+    uint8_t value;
+
+    value = readRegister8(DS3231_REG_STATUS);
+
+    value &= 0b00001000;
+    value >>= 3;
+
+    return value;
+}
+
+void DS3231Class::ForceConversion(void)
+{
+    uint8_t busy;
+    uint8_t value;
+
+    busy = readRegister8(DS3231_REG_STATUS);
+    
+    if (busy & 0b00000100)
+    {
+        value = readRegister8(DS3231_REG_CONTROL);
+        value |= 0b00100000;
+        writeRegister8(DS3231_REG_CONTROL, value);
+
+        do {} while ((readRegister8(DS3231_REG_CONTROL) & 0b00100000) != 0);
+    }
+}
+
+float DS3231Class::GetTemperature(void)
+{
+    uint8_t msb, lsb;
+
+    Wire.beginTransmission(DS3231_ADDRESS);
+    WireWrite(DS3231_REG_TEMPERATURE);
+    Wire.endTransmission();
+
+    Wire.requestFrom(DS3231_ADDRESS, 2);
+
+    while (!Wire.available()) {};
+
+    msb = WireRead();
+    lsb = WireRead();
+
+    return ((((short)msb << 8) | (short)lsb) >> 6) / 4.0f;
+}
+
+void DS3231Class::SetBattery(bool timeBattery, bool squareBattery)
+{
+    uint8_t value;
+
+    value = readRegister8(DS3231_REG_CONTROL);
+
+    if (squareBattery)
+    {
+        value |= 0b01000000;
+    }
+    else
+    {
+        value &= 0b10111111;
+    }
+
+    if (timeBattery)
+    {
+        value &= 0b01111011;
+    }
+    else
+    {
+        value |= 0b10000000;
+    }
+
+    writeRegister8(DS3231_REG_CONTROL, value);
+}
+
+uint8_t DS3231Class::getDayOfWeek(uint16_t pYear, uint8_t pMonth, uint8_t pDay)
+{
+    uint8_t dow;
+
+    pYear -= pMonth < 3;
+    dow = (pYear + pYear / 4 - pYear / 100 + pYear / 400 + pDay +
+        pgm_read_byte(SCHWERDTFEGER + (pMonth - 1))) % 7;
+
+    if (dow == 0)
+    {
+        return 7;
+    }
+
+    return dow;
 }
 
 uint8_t DS3231Class::bcd2dec(uint8_t bcd)
@@ -939,253 +689,28 @@ uint8_t DS3231Class::dec2bcd(uint8_t dec)
     return ((dec / 10) * 16) + (dec % 10);
 }
 
-char *DS3231Class::strDayOfWeek(uint8_t dayOfWeek)
-{
-    switch (dayOfWeek) {
-        case 1:
-            return "Monday";
-            break;
-        case 2:
-            return "Tuesday";
-            break;
-        case 3:
-            return "Wednesday";
-            break;
-        case 4:
-            return "Thursday";
-            break;
-        case 5:
-            return "Friday";
-            break;
-        case 6:
-            return "Saturday";
-            break;
-        case 7:
-            return "Sunday";
-            break;
-        default:
-            return "Unknown";
-    }
-}
-
-char *DS3231Class::strMonth(uint8_t month)
-{
-    switch (month) {
-        case 1:
-            return "January";
-            break;
-        case 2:
-            return "February";
-            break;
-        case 3:
-            return "March";
-            break;
-        case 4:
-            return "April";
-            break;
-        case 5:
-            return "May";
-            break;
-        case 6:
-            return "June";
-            break;
-        case 7:
-            return "July";
-            break;
-        case 8:
-            return "August";
-            break;
-        case 9:
-            return "September";
-            break;
-        case 10:
-            return "October";
-            break;
-        case 11:
-            return "November";
-            break;
-        case 12:
-            return "December";
-            break;
-        default:
-            return "Unknown";
-    }
-}
-
-char *DS3231Class::strAmPm(uint8_t hour, bool uppercase)
-{
-    if (hour < 12)
-    {
-        if (uppercase)
-        {
-            return "AM";
-        } else
-        {
-            return "am";
-        }
-    } else
-    {
-        if (uppercase)
-        {
-            return "PM";
-        } else
-        {
-            return "pm";
-        }
-    }
-}
-
-char *DS3231Class::strDaySufix(uint8_t day)
-{
-    if (day % 10 == 1)
-    {
-        return "st";
-    } else
-    if (day % 10 == 2)
-    {
-        return "nd";
-    }
-    if (day % 10 == 3)
-    {
-        return "rd";
-    }
-
-    return "th";
-}
-
-uint8_t DS3231Class::hour12(uint8_t hour24)
-{
-    if (hour24 == 0)
-    {
-        return 12;
-    }
-
-    if (hour24 > 12)
-    {
-       return (hour24 - 12);
-    }
-
-    return hour24;
-}
-
-long DS3231Class::time2long(uint16_t days, uint8_t hours, uint8_t minutes, uint8_t seconds)
-{
-    return ((days * 24L + hours) * 60 + minutes) * 60 + seconds;
-}
-
-uint16_t DS3231Class::dayInYear(uint16_t year, uint8_t month, uint8_t day)
-{
-    uint16_t fromDate;
-    uint16_t toDate;
-
-    fromDate = date2days(year, 1, 1);
-    toDate = date2days(year, month, day);
-
-    return (toDate - fromDate);
-}
-
-uint8_t DS3231Class::daysInMonth(uint16_t year, uint8_t month)
-{
-    uint8_t days;
-
-    days = pgm_read_byte(daysArray + month - 1);
-
-    if ((month == 2) && LEAP_YEAR(year))
-    {
-        ++days;
-    }
-
-    return days;
-}
-
-uint16_t DS3231Class::date2days(uint16_t year, uint8_t month, uint8_t day)
-{
-    year = year - 2000;
-
-    uint16_t days16 = day;
-
-    for (uint8_t i = 1; i < month; ++i)
-    {
-        days16 += pgm_read_byte(daysArray + i - 1);
-    }
-
-    if ((month == 2) && LEAP_YEAR(year))
-    {
-        ++days16;
-    }
-
-    return days16 + 365 * year + (year + 3) / 4;
-}
-
-uint32_t DS3231Class::unixtime(void)
-{
-    uint32_t u;
-
-    u = time2long(date2days(t.year, t.month, t.day), t.hour, t.minute, t.second);
-    u += 946684800;
-
-    return u;
-}
-
-uint8_t DS3231Class::conv2d(const char* p)
-{
-    uint8_t v = 0;
-
-    if ('0' <= *p && *p <= '9')
-    {
-        v = *p - '0';
-    }
-
-    return 10 * v + *++p - '0';
-}
-
-uint8_t DS3231Class::dow(uint16_t y, uint8_t m, uint8_t d)
-{
-    uint8_t dow;
-
-    y -= m < 3;
-    dow = ((y + y/4 - y/100 + y/400 + pgm_read_byte(dowArray+(m-1)) + d) % 7);
-
-    if (dow == 0)
-    {
-        return 7;
-    }
-
-    return dow;
-}
-
 void DS3231Class::writeRegister8(uint8_t reg, uint8_t value)
 {
     Wire.beginTransmission(DS3231_ADDRESS);
-    #if ARDUINO >= 100
-        Wire.write(reg);
-        Wire.write(value);
-    #else
-        Wire.send(reg);
-        Wire.send(value);
-    #endif
+    WireWrite(reg);
+    WireWrite(value);
     Wire.endTransmission();
 }
 
 uint8_t DS3231Class::readRegister8(uint8_t reg)
 {
     uint8_t value;
+
     Wire.beginTransmission(DS3231_ADDRESS);
-    #if ARDUINO >= 100
-        Wire.write(reg);
-    #else
-        Wire.send(reg);
-    #endif
+    WireWrite(reg);
     Wire.endTransmission();
 
     Wire.requestFrom(DS3231_ADDRESS, 1);
     while(!Wire.available()) {};
-    #if ARDUINO >= 100
-        value = Wire.read();
-    #else
-        value = Wire.receive();
-    #endif;
+    value = WireRead();
     Wire.endTransmission();
 
     return value;
 }
+
+DS3231Class DS3231;

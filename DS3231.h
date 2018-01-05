@@ -1,9 +1,11 @@
 /*
 DS3231.h - Header file for the DS3231 Real-Time Clock
 
-Version: 1.0.1
+Version: 1.0.0
 (c) 2014 Korneliusz Jarzebski
 www.jarzebski.pl
+
+(c) 2017 Rinaldi Segecin
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the version 3 GNU General Public License as
@@ -23,7 +25,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef _DS3231_h
 #define _DS3231_h
 
-#include <Arduino.h>
+#if ARDUINO >= 100
+#include "Arduino.h"
+#else
+#include "WProgram.h"
+#endif
+
 #include <Wire.h>
 
 #define DS3231_ADDRESS              (0x68)
@@ -36,14 +43,21 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define DS3231_REG_TEMPERATURE      (0x11)
 
 #define BASE_YEAR				2000UL
+#define SECS_PER_MIN			60UL
+#define SECS_PER_HOUR			3600UL
+#define SECS_PER_DAY			SECS_PER_HOUR * 24UL
+#define SECS_PER_YEAR			SECS_PER_DAY * 365UL
+#define SECS_FEB				SECS_PER_DAY * 28UL
+#define SECS_FEB_LEAP			SECS_PER_DAY * 29UL
+#define SECS_PER_MONTH_EVEN		SECS_PER_DAY * 30UL
+#define SECS_PER_MONTH_ODD		SECS_PER_DAY * 31UL
+
 #define LEAP_YEAR(Y)	(((BASE_YEAR + Y) > 0) && !((BASE_YEAR + Y) % 4) && (((BASE_YEAR + Y) % 100) || !((BASE_YEAR + Y) % 400)))
 
-const uint8_t daysArray[] PROGMEM = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
-const uint8_t dowArray[] PROGMEM = { 0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4 };
+const PROGMEM uint8_t MONTH_DAYS[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+const PROGMEM uint8_t SCHWERDTFEGER[] = { 0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4 };
 
-#ifndef RTCDATETIME_STRUCT_H
-#define RTCDATETIME_STRUCT_H
-struct RTCDateTime
+struct sDateTime
 {
     uint16_t year;
     uint8_t month;
@@ -52,17 +66,15 @@ struct RTCDateTime
     uint8_t minute;
     uint8_t second;
     uint8_t dayOfWeek;
-    uint32_t unixtime;
 };
 
-struct RTCAlarmTime
+struct sAlarmTime
 {
     uint8_t day;
     uint8_t hour;
     uint8_t minute;
     uint8_t second;
 };
-#endif
 
 typedef enum
 {
@@ -70,7 +82,7 @@ typedef enum
     DS3231_4096HZ       = 0x01,
     DS3231_8192HZ       = 0x02,
     DS3231_32768HZ      = 0x03
-} DS3231_sqw_t;
+} eDS3231_sqw_t;
 
 typedef enum
 {
@@ -80,7 +92,7 @@ typedef enum
     DS3231_MATCH_H_M_S    = 0b00001000,
     DS3231_MATCH_DT_H_M_S = 0b00000000,
     DS3231_MATCH_DY_H_M_S = 0b00010000
-} DS3231_alarm1_t;
+} eDS3231_alarm1_t;
 
 typedef enum
 {
@@ -89,74 +101,74 @@ typedef enum
     DS3231_MATCH_H_M      = 0b00001000,
     DS3231_MATCH_DT_H_M   = 0b00000000,
     DS3231_MATCH_DY_H_M   = 0b00010000
-} DS3231_alarm2_t;
+} eDS3231_alarm2_t;
 
 class DS3231Class
 {
     public:
+	    bool Begin(void);
 
-	bool begin(void);
+        void SetDateTime(sDateTime & pDateTime); // Set the RTC's module to the given pDateTime
+	    void GetDateTime(sDateTime & pDateTime); // Get the RTC's module to the given pDateTime
 
-	void setDateTime(uint16_t year, uint8_t month, uint8_t day, uint8_t hour, uint8_t minute, uint8_t second);
-	void setDateTime(uint32_t t);
-	void setDateTime(const char* date, const char* time);
-	RTCDateTime getDateTime(void);
-	uint8_t isReady(void);
+        static void ParseStrDateTime(sDateTime & pDateTime, char pStrDateTime[]); // Parse from ISO 8601 string format to sDateTime
+        static void ConvertToSeconds(uint32_t & pSeconds, sDateTime & pDateTime); // Convert from sDateTime to number of seconds since Jan 1st of 2000
+        static void ConvertToDateTime(sDateTime & pDateTime, uint32_t pSeconds); // Convert from number of seconds since beginning of 2000 to sDateTime
 
-	DS3231_sqw_t getOutput(void);
-	void setOutput(DS3231_sqw_t mode);
-	void enableOutput(bool enabled);
-	bool isOutput(void);
-	void enable32kHz(bool enabled);
-	bool is32kHz(void);
+	    void SetAlarm1(uint8_t dydw, uint8_t hour, uint8_t minute, uint8_t second, eDS3231_alarm1_t mode, bool armed = true);
+	    void GetAlarm1(sAlarmTime & pAlarmTime);
+	    void GetAlarmType1(eDS3231_alarm1_t & pDS3231_alarm1_t);
+	    bool IsAlarm1(bool clear = true);
+	    void ArmAlarm1(bool armed);
+	    bool IsArmed1(void);
+	    void ClearAlarm1(void);
 
-	void forceConversion(void);
-	float readTemperature(void);
+	    void SetAlarm2(uint8_t dydw, uint8_t hour, uint8_t minute, eDS3231_alarm2_t mode, bool armed = true);
+	    void GetAlarm2(sAlarmTime & pAlarmTime);
+	    void GetAlarmType2(eDS3231_alarm2_t & pDS3231_alarm2_t);
+	    bool IsAlarm2(bool clear = true);
+	    void ArmAlarm2(bool armed);
+	    bool IsArmed2(void);
+	    void ClearAlarm2(void);
 
-	void setAlarm1(uint8_t dydw, uint8_t hour, uint8_t minute, uint8_t second, DS3231_alarm1_t mode, bool armed = true);
-	RTCAlarmTime getAlarm1(void);
-	DS3231_alarm1_t getAlarmType1(void);
-	bool isAlarm1(bool clear = true);
-	void armAlarm1(bool armed);
-	bool isArmed1(void);
-	void clearAlarm1(void);
+        void GetOutput(eDS3231_sqw_t &pMode);
+        void SetOutput(eDS3231_sqw_t pMode);
+        void EnableOutput(bool enabled);
+        bool IsOutput(void);
+        void Enable32kHz(bool enabled);
+        bool Is32kHz(void);
 
-	void setAlarm2(uint8_t dydw, uint8_t hour, uint8_t minute, DS3231_alarm2_t mode, bool armed = true);
-	RTCAlarmTime getAlarm2(void);
-	DS3231_alarm2_t getAlarmType2(void);
-	bool isAlarm2(bool clear = true);
-	void armAlarm2(bool armed);
-	bool isArmed2(void);
-	void clearAlarm2(void);
+        void ForceConversion(void);
+        float GetTemperature(void);
 
-	void setBattery(bool timeBattery, bool squareBattery);
-
-	char* dateFormat(const char* dateFormat, RTCDateTime dt);
-	char* dateFormat(const char* dateFormat, RTCAlarmTime dt);
-
+	    void SetBattery(bool timeBattery, bool squareBattery);
+    
     private:
-	RTCDateTime t;
+        inline uint8_t WireRead() {
+#if ARDUINO >= 100
+            return Wire.read();
+#else
+            return Wire.receive();
+#endif
+        };
 
-	char *strDayOfWeek(uint8_t dayOfWeek);
-	char *strMonth(uint8_t month);
-	char *strAmPm(uint8_t hour, bool uppercase);
-	char *strDaySufix(uint8_t day);
+        inline void WireWrite(uint8_t data) {
+#if ARDUINO >= 100
+            Wire.write(data);
+#else
+            Wire.send(data);
+#endif
+        };
 
-	uint8_t hour12(uint8_t hour24);
-	uint8_t bcd2dec(uint8_t bcd);
-	uint8_t dec2bcd(uint8_t dec);
+        static uint8_t getDayOfWeek(uint16_t pYear, uint8_t pMonth, uint8_t pDay);
 
-	long time2long(uint16_t days, uint8_t hours, uint8_t minutes, uint8_t seconds);
-	uint16_t date2days(uint16_t year, uint8_t month, uint8_t day);
-	uint8_t daysInMonth(uint16_t year, uint8_t month);
-	uint16_t dayInYear(uint16_t year, uint8_t month, uint8_t day);
-	uint8_t dow(uint16_t y, uint8_t m, uint8_t d);
-
-	uint32_t unixtime(void);
-	uint8_t conv2d(const char* p);
-
-	void writeRegister8(uint8_t reg, uint8_t value);
-	uint8_t readRegister8(uint8_t reg);
+        static uint8_t bcd2dec(uint8_t bcd);
+        static uint8_t dec2bcd(uint8_t dec);
+    
+	    void writeRegister8(uint8_t reg, uint8_t value);
+	    uint8_t readRegister8(uint8_t reg);
 };
+
+extern DS3231Class DS3231;
 
 #endif
