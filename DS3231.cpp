@@ -58,7 +58,7 @@ void DS3231Class::GetDateTime(sDateTime & pDateTime)
 
     Wire.requestFrom(DS3231_ADDRESS, 7);
 
-    while(!Wire.available()) {};
+    while (!Wire.available()) {};
 
     for (uint8_t i = 0; i < 7; i++)
     {
@@ -67,13 +67,13 @@ void DS3231Class::GetDateTime(sDateTime & pDateTime)
 
     Wire.endTransmission();
 
-    pDateTime.second    = values[0];
-    pDateTime.minute    = values[1];
-    pDateTime.hour      = values[2];
+    pDateTime.second = values[0];
+    pDateTime.minute = values[1];
+    pDateTime.hour = values[2];
     pDateTime.dayOfWeek = values[3];
-    pDateTime.day       = values[4];
-    pDateTime.month     = values[5];
-    pDateTime.year      = values[6] + 2000;
+    pDateTime.day = values[4];
+    pDateTime.month = values[5];
+    pDateTime.year = values[6] + 2000;
 }
 
 void DS3231Class::ParseStrDateTime(sDateTime & pDateTime, char pStrDateTime[])
@@ -215,7 +215,7 @@ void DS3231Class::GetAlarm1(sAlarmTime & pAlarmTime)
 
     Wire.requestFrom(DS3231_ADDRESS, 4);
 
-    while(!Wire.available()) {};
+    while (!Wire.available()) {};
 
     for (int i = 3; i >= 0; i--)
     {
@@ -241,7 +241,7 @@ void DS3231Class::GetAlarmType1(eDS3231_alarm1_t & pDS3231_alarm1_t)
 
     Wire.requestFrom(DS3231_ADDRESS, 4);
 
-    while(!Wire.available()) {};
+    while (!Wire.available()) {};
 
     for (int i = 3; i >= 0; i--)
     {
@@ -266,50 +266,50 @@ void DS3231Class::SetAlarm1(uint8_t dydw, uint8_t hour, uint8_t minute, uint8_t 
     hour = dec2bcd(hour);
     dydw = dec2bcd(dydw);
 
-    switch(mode)
+    switch (mode)
     {
-        case DS3231_EVERY_SECOND:
-            second |= 0b10000000;
-            minute |= 0b10000000;
-            hour |= 0b10000000;
-            dydw |= 0b10000000;
-            break;
+    case DS3231_EVERY_SECOND:
+        second |= 0b10000000;
+        minute |= 0b10000000;
+        hour |= 0b10000000;
+        dydw |= 0b10000000;
+        break;
 
-        case DS3231_MATCH_S:
-            second &= 0b01111111;
-            minute |= 0b10000000;
-            hour |= 0b10000000;
-            dydw |= 0b10000000;
-            break;
+    case DS3231_MATCH_S:
+        second &= 0b01111111;
+        minute |= 0b10000000;
+        hour |= 0b10000000;
+        dydw |= 0b10000000;
+        break;
 
-        case DS3231_MATCH_M_S:
-            second &= 0b01111111;
-            minute &= 0b01111111;
-            hour |= 0b10000000;
-            dydw |= 0b10000000;
-            break;
+    case DS3231_MATCH_M_S:
+        second &= 0b01111111;
+        minute &= 0b01111111;
+        hour |= 0b10000000;
+        dydw |= 0b10000000;
+        break;
 
-        case DS3231_MATCH_H_M_S:
-            second &= 0b01111111;
-            minute &= 0b01111111;
-            hour &= 0b01111111;
-            dydw |= 0b10000000;
-            break;
+    case DS3231_MATCH_H_M_S:
+        second &= 0b01111111;
+        minute &= 0b01111111;
+        hour &= 0b01111111;
+        dydw |= 0b10000000;
+        break;
 
-        case DS3231_MATCH_DT_H_M_S:
-            second &= 0b01111111;
-            minute &= 0b01111111;
-            hour &= 0b01111111;
-            dydw &= 0b01111111;
-            break;
+    case DS3231_MATCH_DT_H_M_S:
+        second &= 0b01111111;
+        minute &= 0b01111111;
+        hour &= 0b01111111;
+        dydw &= 0b01111111;
+        break;
 
-        case DS3231_MATCH_DY_H_M_S:
-            second &= 0b01111111;
-            minute &= 0b01111111;
-            hour &= 0b01111111;
-            dydw &= 0b01111111;
-            dydw |= 0b01000000;
-            break;
+    case DS3231_MATCH_DY_H_M_S:
+        second &= 0b01111111;
+        minute &= 0b01111111;
+        hour &= 0b01111111;
+        dydw &= 0b01111111;
+        dydw |= 0b01000000;
+        break;
     }
 
     Wire.beginTransmission(DS3231_ADDRESS);
@@ -348,7 +348,8 @@ void DS3231Class::ArmAlarm1(bool armed)
     if (armed)
     {
         value |= 0b00000001;
-    } else
+    }
+    else
     {
         value &= 0b11111110;
     }
@@ -384,7 +385,7 @@ void DS3231Class::GetAlarm2(sAlarmTime & pAlarmTime)
 
     Wire.requestFrom(DS3231_ADDRESS, 3);
 
-    while(!Wire.available()) {};
+    while (!Wire.available()) {};
 
     for (int i = 2; i >= 0; i--)
     {
@@ -410,7 +411,7 @@ void DS3231Class::GetAlarmType2(eDS3231_alarm2_t & pDS3231_alarm2_t)
 
     Wire.requestFrom(DS3231_ADDRESS, 3);
 
-    while(!Wire.available()) {};
+    while (!Wire.available()) {};
 
     for (int i = 2; i >= 0; i--)
     {
@@ -433,38 +434,38 @@ void DS3231Class::SetAlarm2(uint8_t dydw, uint8_t hour, uint8_t minute, eDS3231_
     hour = dec2bcd(hour);
     dydw = dec2bcd(dydw);
 
-    switch(mode)
+    switch (mode)
     {
-        case DS3231_EVERY_MINUTE:
-            minute |= 0b10000000;
-            hour |= 0b10000000;
-            dydw |= 0b10000000;
-            break;
+    case DS3231_EVERY_MINUTE:
+        minute |= 0b10000000;
+        hour |= 0b10000000;
+        dydw |= 0b10000000;
+        break;
 
-        case DS3231_MATCH_M:
-            minute &= 0b01111111;
-            hour |= 0b10000000;
-            dydw |= 0b10000000;
-            break;
+    case DS3231_MATCH_M:
+        minute &= 0b01111111;
+        hour |= 0b10000000;
+        dydw |= 0b10000000;
+        break;
 
-        case DS3231_MATCH_H_M:
-            minute &= 0b01111111;
-            hour &= 0b01111111;
-            dydw |= 0b10000000;
-            break;
+    case DS3231_MATCH_H_M:
+        minute &= 0b01111111;
+        hour &= 0b01111111;
+        dydw |= 0b10000000;
+        break;
 
-        case DS3231_MATCH_DT_H_M:
-            minute &= 0b01111111;
-            hour &= 0b01111111;
-            dydw &= 0b01111111;
-            break;
+    case DS3231_MATCH_DT_H_M:
+        minute &= 0b01111111;
+        hour &= 0b01111111;
+        dydw &= 0b01111111;
+        break;
 
-        case DS3231_MATCH_DY_H_M:
-            minute &= 0b01111111;
-            hour &= 0b01111111;
-            dydw &= 0b01111111;
-            dydw |= 0b01000000;
-            break;
+    case DS3231_MATCH_DY_H_M:
+        minute &= 0b01111111;
+        hour &= 0b01111111;
+        dydw &= 0b01111111;
+        dydw |= 0b01000000;
+        break;
     }
 
     Wire.beginTransmission(DS3231_ADDRESS);
@@ -487,7 +488,8 @@ void DS3231Class::ArmAlarm2(bool armed)
     if (armed)
     {
         value |= 0b00000010;
-    } else
+    }
+    else
     {
         value &= 0b11111101;
     }
@@ -607,7 +609,7 @@ void DS3231Class::ForceConversion(void)
     uint8_t value;
 
     busy = readRegister8(DS3231_REG_STATUS);
-    
+
     if (busy & 0b00000100)
     {
         value = readRegister8(DS3231_REG_CONTROL);
@@ -706,7 +708,7 @@ uint8_t DS3231Class::readRegister8(uint8_t reg)
     Wire.endTransmission();
 
     Wire.requestFrom(DS3231_ADDRESS, 1);
-    while(!Wire.available()) {};
+    while (!Wire.available()) {};
     value = WireRead();
     Wire.endTransmission();
 

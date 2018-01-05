@@ -78,95 +78,95 @@ struct sAlarmTime
 
 typedef enum
 {
-    DS3231_1HZ          = 0x00,
-    DS3231_4096HZ       = 0x01,
-    DS3231_8192HZ       = 0x02,
-    DS3231_32768HZ      = 0x03
+    DS3231_1HZ      = 0x00,
+    DS3231_4096HZ   = 0x01,
+    DS3231_8192HZ   = 0x02,
+    DS3231_32768HZ  = 0x03
 } eDS3231_sqw_t;
 
 typedef enum
 {
-    DS3231_EVERY_SECOND   = 0b00001111,
-    DS3231_MATCH_S        = 0b00001110,
-    DS3231_MATCH_M_S      = 0b00001100,
-    DS3231_MATCH_H_M_S    = 0b00001000,
-    DS3231_MATCH_DT_H_M_S = 0b00000000,
-    DS3231_MATCH_DY_H_M_S = 0b00010000
+    DS3231_EVERY_SECOND     = 0b00001111,
+    DS3231_MATCH_S          = 0b00001110,
+    DS3231_MATCH_M_S        = 0b00001100,
+    DS3231_MATCH_H_M_S      = 0b00001000,
+    DS3231_MATCH_DT_H_M_S   = 0b00000000,
+    DS3231_MATCH_DY_H_M_S   = 0b00010000
 } eDS3231_alarm1_t;
 
 typedef enum
 {
-    DS3231_EVERY_MINUTE   = 0b00001110,
-    DS3231_MATCH_M        = 0b00001100,
-    DS3231_MATCH_H_M      = 0b00001000,
-    DS3231_MATCH_DT_H_M   = 0b00000000,
-    DS3231_MATCH_DY_H_M   = 0b00010000
+    DS3231_EVERY_MINUTE = 0b00001110,
+    DS3231_MATCH_M      = 0b00001100,
+    DS3231_MATCH_H_M    = 0b00001000,
+    DS3231_MATCH_DT_H_M = 0b00000000,
+    DS3231_MATCH_DY_H_M = 0b00010000
 } eDS3231_alarm2_t;
 
 class DS3231Class
 {
-    public:
-	    bool Begin(void);
+public:
+    bool Begin(void);
 
-        void SetDateTime(sDateTime & pDateTime); // Set the RTC's module to the given pDateTime
-	    void GetDateTime(sDateTime & pDateTime); // Get the RTC's module to the given pDateTime
+    void SetDateTime(sDateTime & pDateTime); // Set the RTC's module to the given pDateTime
+    void GetDateTime(sDateTime & pDateTime); // Get the RTC's module to the given pDateTime
 
-        static void ParseStrDateTime(sDateTime & pDateTime, char pStrDateTime[]); // Parse from ISO 8601 string format to sDateTime
-        static void ConvertToSeconds(uint32_t & pSeconds, sDateTime & pDateTime); // Convert from sDateTime to number of seconds since Jan 1st of 2000
-        static void ConvertToDateTime(sDateTime & pDateTime, uint32_t pSeconds); // Convert from number of seconds since beginning of 2000 to sDateTime
+    static void ParseStrDateTime(sDateTime & pDateTime, char pStrDateTime[]); // Parse from ISO 8601 string format to sDateTime
+    static void ConvertToSeconds(uint32_t & pSeconds, sDateTime & pDateTime); // Convert from sDateTime to number of seconds since Jan 1st of 2000
+    static void ConvertToDateTime(sDateTime & pDateTime, uint32_t pSeconds); // Convert from number of seconds since beginning of 2000 to sDateTime
 
-	    void SetAlarm1(uint8_t dydw, uint8_t hour, uint8_t minute, uint8_t second, eDS3231_alarm1_t mode, bool armed = true);
-	    void GetAlarm1(sAlarmTime & pAlarmTime);
-	    void GetAlarmType1(eDS3231_alarm1_t & pDS3231_alarm1_t);
-	    bool IsAlarm1(bool clear = true);
-	    void ArmAlarm1(bool armed);
-	    bool IsArmed1(void);
-	    void ClearAlarm1(void);
+    void SetAlarm1(uint8_t dydw, uint8_t hour, uint8_t minute, uint8_t second, eDS3231_alarm1_t mode, bool armed = true);
+    void GetAlarm1(sAlarmTime & pAlarmTime);
+    void GetAlarmType1(eDS3231_alarm1_t & pDS3231_alarm1_t);
+    bool IsAlarm1(bool clear = true);
+    void ArmAlarm1(bool armed);
+    bool IsArmed1(void);
+    void ClearAlarm1(void);
 
-	    void SetAlarm2(uint8_t dydw, uint8_t hour, uint8_t minute, eDS3231_alarm2_t mode, bool armed = true);
-	    void GetAlarm2(sAlarmTime & pAlarmTime);
-	    void GetAlarmType2(eDS3231_alarm2_t & pDS3231_alarm2_t);
-	    bool IsAlarm2(bool clear = true);
-	    void ArmAlarm2(bool armed);
-	    bool IsArmed2(void);
-	    void ClearAlarm2(void);
+    void SetAlarm2(uint8_t dydw, uint8_t hour, uint8_t minute, eDS3231_alarm2_t mode, bool armed = true);
+    void GetAlarm2(sAlarmTime & pAlarmTime);
+    void GetAlarmType2(eDS3231_alarm2_t & pDS3231_alarm2_t);
+    bool IsAlarm2(bool clear = true);
+    void ArmAlarm2(bool armed);
+    bool IsArmed2(void);
+    void ClearAlarm2(void);
 
-        void GetOutput(eDS3231_sqw_t &pMode);
-        void SetOutput(eDS3231_sqw_t pMode);
-        void EnableOutput(bool enabled);
-        bool IsOutput(void);
-        void Enable32kHz(bool enabled);
-        bool Is32kHz(void);
+    void GetOutput(eDS3231_sqw_t &pMode);
+    void SetOutput(eDS3231_sqw_t pMode);
+    void EnableOutput(bool enabled);
+    bool IsOutput(void);
+    void Enable32kHz(bool enabled);
+    bool Is32kHz(void);
 
-        void ForceConversion(void);
-        float GetTemperature(void);
+    void ForceConversion(void);
+    float GetTemperature(void);
 
-	    void SetBattery(bool timeBattery, bool squareBattery);
-    
-    private:
-        inline uint8_t WireRead() {
+    void SetBattery(bool timeBattery, bool squareBattery);
+
+private:
+    inline uint8_t WireRead() {
 #if ARDUINO >= 100
-            return Wire.read();
+        return Wire.read();
 #else
-            return Wire.receive();
+        return Wire.receive();
 #endif
-        };
+    };
 
-        inline void WireWrite(uint8_t data) {
+    inline void WireWrite(uint8_t data) {
 #if ARDUINO >= 100
-            Wire.write(data);
+        Wire.write(data);
 #else
-            Wire.send(data);
+        Wire.send(data);
 #endif
-        };
+    };
 
-        static uint8_t getDayOfWeek(uint16_t pYear, uint8_t pMonth, uint8_t pDay);
+    static uint8_t getDayOfWeek(uint16_t pYear, uint8_t pMonth, uint8_t pDay);
 
-        static uint8_t bcd2dec(uint8_t bcd);
-        static uint8_t dec2bcd(uint8_t dec);
-    
-	    void writeRegister8(uint8_t reg, uint8_t value);
-	    uint8_t readRegister8(uint8_t reg);
+    static uint8_t bcd2dec(uint8_t bcd);
+    static uint8_t dec2bcd(uint8_t dec);
+
+    void writeRegister8(uint8_t reg, uint8_t value);
+    uint8_t readRegister8(uint8_t reg);
 };
 
 extern DS3231Class DS3231;
