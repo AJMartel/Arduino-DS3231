@@ -209,3 +209,11 @@ uint32_t CalendarHelperClass::Difference(sDateTime & pDateTimeOne, sDateTime & p
     else
         return two - one;
 }
+
+void CalendarHelperClass::SPrintTime(char * pBuffer, sDateTime & pDateTime)
+{
+    sprintf(pBuffer, "%i-%i-%i %i:%i:%i",
+        pDateTime.Year, pDateTime.Month, pDateTime.Day, 
+        pDateTime.Hour, pDateTime.Minute, pDateTime.Second);
+}
+

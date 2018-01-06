@@ -136,6 +136,4 @@ private:
     uint8_t readRegister8(uint8_t reg);
 };
 
-extern DS3231Class DS3231;
-
 #endif
