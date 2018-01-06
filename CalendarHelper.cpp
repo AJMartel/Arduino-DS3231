@@ -188,3 +188,17 @@ void CalendarHelperClass::EndingOfSummerTime(sDateTime & pDateTime, uint16_t pYe
     if (carnavalSunday.Day == pDateTime.Day)
         pDateTime.Day += 7;
 }
+
+uint32_t CalendarHelperClass::Difference(sDateTime & pDateTimeOne, sDateTime & pDateTimeTwo)
+{
+    uint32_t one;
+    uint32_t two;
+
+    CalendarHelperClass::ConvertToSeconds(one, pDateTimeOne);
+    CalendarHelperClass::ConvertToSeconds(two, pDateTimeTwo);
+
+    if (one > two)
+        return one - two;
+    else
+        return two - one;
+}

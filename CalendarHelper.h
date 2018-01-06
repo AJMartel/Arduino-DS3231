@@ -44,6 +44,7 @@ public:
 
     static void BeginningOfSummerTime(sDateTime & pDateTime, uint16_t pYear); // Return the date when the summer time starts in Brazil
     static void EndingOfSummerTime(sDateTime & pDateTime, uint16_t pYear);
+    static uint32_t Difference(sDateTime & pDateTimeOne, sDateTime & pDateTimeTwo);
 };
 
 #endif
