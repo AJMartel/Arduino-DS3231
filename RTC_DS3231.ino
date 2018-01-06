@@ -2,9 +2,12 @@
 #include "DS3231.h"
 
 char serialBuffer[120];
+char auxBuffer[20];
 sDateTime datetime;
 
 bool summerTimeSet = false;
+
+DS3231Class DS3231;
 
 void setup()
 {
@@ -37,8 +40,8 @@ void loop()
 {
     DS3231.GetDateTime(datetime);
     
-    sprintf(serialBuffer, "now: %i/%i/%i %i:%i:%i",
-        datetime.Day, datetime.Month, datetime.Year, datetime.Hour, datetime.Minute, datetime.Second);
+    CalendarHelperClass::SPrintTime(auxBuffer, datetime);
+    sprintf(serialBuffer, "Now the time is %s", auxBuffer);
     Serial.println(serialBuffer);
 
     if (datetime.Second % 5 == 0)
