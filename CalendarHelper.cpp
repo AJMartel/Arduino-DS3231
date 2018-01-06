@@ -23,6 +23,13 @@ void CalendarHelperClass::ParseStrDateTime(sDateTime & pDateTime, char pStrDateT
     }
 }
 
+void CalendarHelperClass::ParseStrDateTime(uint32_t & pTime, char pStrDateTime[])
+{
+    sDateTime datetime;
+    CalendarHelperClass::ParseStrDateTime(datetime, pStrDateTime);
+    CalendarHelperClass::ConvertToSeconds(pTime, datetime);
+}
+
 void CalendarHelperClass::ConvertToSeconds(uint32_t & pSeconds, sDateTime & pDateTime)
 {
     int i;

@@ -38,6 +38,7 @@ private:
 
 public:
     static void ParseStrDateTime(sDateTime & pDateTime, char pStrDateTime[]); // Parse from ISO 8601 string format to sDateTime
+    static void ParseStrDateTime(uint32_t & pTime, char pStrDateTime[]); // Parse from ISO 8601 string format to sDateTime
     static void ConvertToSeconds(uint32_t & pSeconds, sDateTime & pDateTime); // Convert from sDateTime to number of seconds since Jan 1st of 2000
     static void ConvertToDateTime(sDateTime & pDateTime, uint32_t pSeconds); // Convert from number of seconds since beginning of 2000 to sDateTime
     static uint8_t GetDayOfWeek(uint16_t pYear, uint8_t pMonth, uint8_t pDay); // Calculate day of week in proleptic Gregorian calendar. Sunday == 0
