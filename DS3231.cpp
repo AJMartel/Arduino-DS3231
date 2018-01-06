@@ -1,9 +1,9 @@
 /*
-DS3231.cpp - Class file for the DS3231 Real-Time Clock
+DS3231.h - Class file for the DS3231 Real-Time Clock
 
-Version: 1.0.1
-(c) 2014 Korneliusz Jarzebski
-www.jarzebski.pl
+Version: 2.0.0
+(c) 2014 Korneliusz Jarzebski - www.jarzebski.pl
+(c) 2018 Rinaldi Segecin
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the version 3 GNU General Public License as
@@ -35,13 +35,13 @@ void DS3231Class::SetDateTime(sDateTime & pDateTime)
 
     WireWrite(DS3231_REG_TIME);
 
-    WireWrite(dec2bcd(pDateTime.second));
-    WireWrite(dec2bcd(pDateTime.minute));
-    WireWrite(dec2bcd(pDateTime.hour));
-    WireWrite(dec2bcd(GetDayOfWeek(pDateTime.year, pDateTime.month, pDateTime.day))); // 0 is sunday
-    WireWrite(dec2bcd(pDateTime.day));
-    WireWrite(dec2bcd(pDateTime.month));
-    WireWrite(dec2bcd(pDateTime.year - 2000));
+    WireWrite(dec2bcd(pDateTime.Second));
+    WireWrite(dec2bcd(pDateTime.Minute));
+    WireWrite(dec2bcd(pDateTime.Hour));
+    WireWrite(dec2bcd(CalendarHelperClass::GetDayOfWeek(pDateTime.Year, pDateTime.Month, pDateTime.Day))); // 0 is sunday
+    WireWrite(dec2bcd(pDateTime.Day));
+    WireWrite(dec2bcd(pDateTime.Month));
+    WireWrite(dec2bcd(pDateTime.Year - 2000));
 
     WireWrite(DS3231_REG_TIME);
 
@@ -67,142 +67,13 @@ void DS3231Class::GetDateTime(sDateTime & pDateTime)
 
     Wire.endTransmission();
 
-    pDateTime.second = values[0];
-    pDateTime.minute = values[1];
-    pDateTime.hour = values[2];
-    pDateTime.dayOfWeek = values[3];
-    pDateTime.day = values[4];
-    pDateTime.month = values[5];
-    pDateTime.year = values[6] + 2000;
-}
-
-void DS3231Class::ParseStrDateTime(sDateTime & pDateTime, char pStrDateTime[])
-{
-    char aux[5];
-
-    if ((pStrDateTime[10] == 'T') && ((pStrDateTime[19] == 'Z') || (pStrDateTime[23] == 'Z')))
-    {
-        memcpy(aux, pStrDateTime, 4);
-        pDateTime.year = atoi(aux);
-        memset(aux, 0x00, 5);
-        memcpy(aux, &pStrDateTime[5], 2);
-        pDateTime.month = atoi(aux);
-        memcpy(aux, &pStrDateTime[8], 2);
-        pDateTime.day = atoi(aux);
-        memcpy(aux, &pStrDateTime[11], 2);
-        pDateTime.hour = atoi(aux);
-        memcpy(aux, &pStrDateTime[14], 2);
-        pDateTime.minute = atoi(aux);
-        memcpy(aux, &pStrDateTime[17], 2);
-        pDateTime.second = atoi(aux);
-        pDateTime.dayOfWeek = GetDayOfWeek(pDateTime.year, pDateTime.month, pDateTime.day);
-    }
-}
-
-void DS3231Class::ConvertToSeconds(uint32_t & pSeconds, sDateTime & pDateTime)
-{
-    int i;
-    int16_t year = pDateTime.year - 2000;
-
-    // seconds from 2000 till 1st jan 00:00:00 of the given year
-    pSeconds = year * SECS_PER_YEAR;
-    for (i = 0; i < year; i++)
-    {
-        if (LEAP_YEAR(i))
-        {
-            pSeconds += SECS_PER_DAY;
-        }
-    }
-
-    // add days for this actual year passed on datetime, months start from 1
-    for (i = 1; i < pDateTime.month; i++)
-    {
-        switch (pgm_read_byte(MONTH_DAYS + i - 1))
-        {
-        case 28:
-            if (LEAP_YEAR(year))
-                pSeconds += SECS_FEB_LEAP;
-            else
-                pSeconds += SECS_FEB;
-            break;
-        case 30:
-            pSeconds += SECS_PER_MONTH_EVEN;
-            break;
-        case 31:
-            pSeconds += SECS_PER_MONTH_ODD;
-            break;
-        default:
-            break;
-        }
-    }
-
-    pSeconds += (pDateTime.day - 1) * SECS_PER_DAY;
-    pSeconds += pDateTime.hour * SECS_PER_HOUR;
-    pSeconds += pDateTime.minute * SECS_PER_MIN;
-    pSeconds += pDateTime.second;
-}
-
-void DS3231Class::ConvertToDateTime(sDateTime & pDateTime, uint32_t pSeconds)
-{
-    uint8_t year;
-    uint8_t month, monthLength;
-    uint32_t time;
-    uint16_t days;
-
-    /*sprintf(lBuffer, "RTC has been set %lu.", (uint32_t)RTCTimer.Time);
-    SerialInterpreter.Send(lBuffer);*/
-
-    time = (uint32_t)pSeconds;
-    pDateTime.second = time % 60;
-    time /= 60; // now it is minutes
-    pDateTime.minute = time % 60;
-    time /= 60; // now it is hours
-    pDateTime.hour = time % 24;
-    time /= 24; // now it is days
-    pDateTime.dayOfWeek = ((time + 4) % 7) + 1;  // Sunday is day 1 
-
-    year = 0;
-    days = 0;
-    for (;;)
-    {
-        days += (LEAP_YEAR(year) ? 366 : 365);
-        if (days < time)
-            year++;
-        else
-            break;
-    }
-    pDateTime.year = year + 2000; // year is offset from 2000 
-
-    days -= (LEAP_YEAR(year) ? 366 : 365);
-    time -= days; // now it is days in this year, starting at 0
-
-    days = 0;
-    month = 0;
-    monthLength = 0;
-
-    for (month = 0; month < 12; month++)
-    {
-        if ((month == 1) && (LEAP_YEAR(year)))
-        {
-            monthLength = 29;
-        }
-        else
-        {
-            monthLength = pgm_read_byte(MONTH_DAYS + month);
-        }
-
-        if (time >= monthLength)
-        {
-            time -= monthLength;
-        }
-        else
-        {
-            break;
-        }
-    }
-
-    pDateTime.month = month + 1;  // jan is month 1  
-    pDateTime.day = time + 1;     // day of month
+    pDateTime.Second = values[0];
+    pDateTime.Minute = values[1];
+    pDateTime.Hour = values[2];
+    pDateTime.DayOfWeek = values[3];
+    pDateTime.Day = values[4];
+    pDateTime.Month = values[5];
+    pDateTime.Year = values[6] + 2000;
 }
 
 void DS3231Class::GetAlarm1(sAlarmTime & pAlarmTime)
@@ -224,10 +95,10 @@ void DS3231Class::GetAlarm1(sAlarmTime & pAlarmTime)
 
     Wire.endTransmission();
 
-    pAlarmTime.day = values[0];
-    pAlarmTime.hour = values[1];
-    pAlarmTime.minute = values[2];
-    pAlarmTime.second = values[3];
+    pAlarmTime.Day = values[0];
+    pAlarmTime.Hour = values[1];
+    pAlarmTime.Minute = values[2];
+    pAlarmTime.Second = values[3];
 }
 
 void DS3231Class::GetAlarmType1(eDS3231_alarm1_t & pDS3231_alarm1_t)
@@ -259,54 +130,54 @@ void DS3231Class::GetAlarmType1(eDS3231_alarm1_t & pDS3231_alarm1_t)
     pDS3231_alarm1_t = (eDS3231_alarm1_t)mode;
 }
 
-void DS3231Class::SetAlarm1(uint8_t dydw, uint8_t hour, uint8_t minute, uint8_t second, eDS3231_alarm1_t mode, bool armed)
+void DS3231Class::SetAlarm1(uint8_t dydw, uint8_t Hour, uint8_t Minute, uint8_t Second, eDS3231_alarm1_t mode, bool armed)
 {
-    second = dec2bcd(second);
-    minute = dec2bcd(minute);
-    hour = dec2bcd(hour);
+    Second = dec2bcd(Second);
+    Minute = dec2bcd(Minute);
+    Hour = dec2bcd(Hour);
     dydw = dec2bcd(dydw);
 
     switch (mode)
     {
     case DS3231_EVERY_SECOND:
-        second |= 0b10000000;
-        minute |= 0b10000000;
-        hour |= 0b10000000;
+        Second |= 0b10000000;
+        Minute |= 0b10000000;
+        Hour |= 0b10000000;
         dydw |= 0b10000000;
         break;
 
     case DS3231_MATCH_S:
-        second &= 0b01111111;
-        minute |= 0b10000000;
-        hour |= 0b10000000;
+        Second &= 0b01111111;
+        Minute |= 0b10000000;
+        Hour |= 0b10000000;
         dydw |= 0b10000000;
         break;
 
     case DS3231_MATCH_M_S:
-        second &= 0b01111111;
-        minute &= 0b01111111;
-        hour |= 0b10000000;
+        Second &= 0b01111111;
+        Minute &= 0b01111111;
+        Hour |= 0b10000000;
         dydw |= 0b10000000;
         break;
 
     case DS3231_MATCH_H_M_S:
-        second &= 0b01111111;
-        minute &= 0b01111111;
-        hour &= 0b01111111;
+        Second &= 0b01111111;
+        Minute &= 0b01111111;
+        Hour &= 0b01111111;
         dydw |= 0b10000000;
         break;
 
     case DS3231_MATCH_DT_H_M_S:
-        second &= 0b01111111;
-        minute &= 0b01111111;
-        hour &= 0b01111111;
+        Second &= 0b01111111;
+        Minute &= 0b01111111;
+        Hour &= 0b01111111;
         dydw &= 0b01111111;
         break;
 
     case DS3231_MATCH_DY_H_M_S:
-        second &= 0b01111111;
-        minute &= 0b01111111;
-        hour &= 0b01111111;
+        Second &= 0b01111111;
+        Minute &= 0b01111111;
+        Hour &= 0b01111111;
         dydw &= 0b01111111;
         dydw |= 0b01000000;
         break;
@@ -314,9 +185,9 @@ void DS3231Class::SetAlarm1(uint8_t dydw, uint8_t hour, uint8_t minute, uint8_t 
 
     Wire.beginTransmission(DS3231_ADDRESS);
     WireWrite(DS3231_REG_ALARM_1);
-    WireWrite(second);
-    WireWrite(minute);
-    WireWrite(hour);
+    WireWrite(Second);
+    WireWrite(Minute);
+    WireWrite(Hour);
     WireWrite(dydw);
     Wire.endTransmission();
 
@@ -394,10 +265,10 @@ void DS3231Class::GetAlarm2(sAlarmTime & pAlarmTime)
 
     Wire.endTransmission();
 
-    pAlarmTime.day = values[0];
-    pAlarmTime.hour = values[1];
-    pAlarmTime.minute = values[2];
-    pAlarmTime.second = 0;
+    pAlarmTime.Day = values[0];
+    pAlarmTime.Hour = values[1];
+    pAlarmTime.Minute = values[2];
+    pAlarmTime.Second = 0;
 }
 
 void DS3231Class::GetAlarmType2(eDS3231_alarm2_t & pDS3231_alarm2_t)
@@ -428,41 +299,41 @@ void DS3231Class::GetAlarmType2(eDS3231_alarm2_t & pDS3231_alarm2_t)
     pDS3231_alarm2_t = (eDS3231_alarm2_t)mode;
 }
 
-void DS3231Class::SetAlarm2(uint8_t dydw, uint8_t hour, uint8_t minute, eDS3231_alarm2_t mode, bool armed)
+void DS3231Class::SetAlarm2(uint8_t dydw, uint8_t Hour, uint8_t Minute, eDS3231_alarm2_t mode, bool armed)
 {
-    minute = dec2bcd(minute);
-    hour = dec2bcd(hour);
+    Minute = dec2bcd(Minute);
+    Hour = dec2bcd(Hour);
     dydw = dec2bcd(dydw);
 
     switch (mode)
     {
     case DS3231_EVERY_MINUTE:
-        minute |= 0b10000000;
-        hour |= 0b10000000;
+        Minute |= 0b10000000;
+        Hour |= 0b10000000;
         dydw |= 0b10000000;
         break;
 
     case DS3231_MATCH_M:
-        minute &= 0b01111111;
-        hour |= 0b10000000;
+        Minute &= 0b01111111;
+        Hour |= 0b10000000;
         dydw |= 0b10000000;
         break;
 
     case DS3231_MATCH_H_M:
-        minute &= 0b01111111;
-        hour &= 0b01111111;
+        Minute &= 0b01111111;
+        Hour &= 0b01111111;
         dydw |= 0b10000000;
         break;
 
     case DS3231_MATCH_DT_H_M:
-        minute &= 0b01111111;
-        hour &= 0b01111111;
+        Minute &= 0b01111111;
+        Hour &= 0b01111111;
         dydw &= 0b01111111;
         break;
 
     case DS3231_MATCH_DY_H_M:
-        minute &= 0b01111111;
-        hour &= 0b01111111;
+        Minute &= 0b01111111;
+        Hour &= 0b01111111;
         dydw &= 0b01111111;
         dydw |= 0b01000000;
         break;
@@ -470,8 +341,8 @@ void DS3231Class::SetAlarm2(uint8_t dydw, uint8_t hour, uint8_t minute, eDS3231_
 
     Wire.beginTransmission(DS3231_ADDRESS);
     WireWrite(DS3231_REG_ALARM_2);
-    WireWrite(minute);
-    WireWrite(hour);
+    WireWrite(Minute);
+    WireWrite(Hour);
     WireWrite(dydw);
     Wire.endTransmission();
 
@@ -663,17 +534,6 @@ void DS3231Class::SetBattery(bool timeBattery, bool squareBattery)
     }
 
     writeRegister8(DS3231_REG_CONTROL, value);
-}
-
-/* Calculate day of week in proleptic Gregorian calendar. Sunday == 0. */
-uint8_t DS3231Class::GetDayOfWeek(uint16_t pYear, uint8_t pMonth, uint8_t pDay)
-{
-    int adjustment, mm, yy;
-
-    adjustment = (14 - pMonth) / 12;
-    mm = pMonth + 12 * adjustment - 2;
-    yy = pYear - adjustment;
-    return (pDay + (13 * mm - 1) / 5 + yy + yy / 4 - yy / 100 + yy / 400) % 7;
 }
 
 uint8_t DS3231Class::bcd2dec(uint8_t bcd)

@@ -80,10 +80,12 @@
     </None>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CalendarHelper.h" />
     <ClInclude Include="DS3231.h" />
     <ClInclude Include="__vm\.RTC_DS3231.vsarduino.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CalendarHelper.cpp" />
     <ClCompile Include="DS3231.cpp" />
   </ItemGroup>
   <PropertyGroup>

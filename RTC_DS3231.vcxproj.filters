@@ -24,9 +24,15 @@
     <ClInclude Include="__vm\.RTC_DS3231.vsarduino.h">
       <Filter>Resource Files</Filter>
     </ClInclude>
+    <ClInclude Include="CalendarHelper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DS3231.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="CalendarHelper.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
