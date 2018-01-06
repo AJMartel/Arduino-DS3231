@@ -1,11 +1,9 @@
 /*
 DS3231.h - Header file for the DS3231 Real-Time Clock
 
-Version: 1.0.0
-(c) 2014 Korneliusz Jarzebski
-www.jarzebski.pl
-
-(c) 2017 Rinaldi Segecin
+Version: 2.0.0
+(c) 2014 Korneliusz Jarzebski - www.jarzebski.pl
+(c) 2018 Rinaldi Segecin
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the version 3 GNU General Public License as
@@ -31,6 +29,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "WProgram.h"
 #endif
 
+#include "CalendarHelper.h"
 #include <Wire.h>
 
 #define DS3231_ADDRESS              (0x68)
@@ -42,38 +41,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #define DS3231_REG_STATUS           (0x0F)
 #define DS3231_REG_TEMPERATURE      (0x11)
 
-#define BASE_YEAR				2000UL
-#define SECS_PER_MIN			60UL
-#define SECS_PER_HOUR			3600UL
-#define SECS_PER_DAY			SECS_PER_HOUR * 24UL
-#define SECS_PER_YEAR			SECS_PER_DAY * 365UL
-#define SECS_FEB				SECS_PER_DAY * 28UL
-#define SECS_FEB_LEAP			SECS_PER_DAY * 29UL
-#define SECS_PER_MONTH_EVEN		SECS_PER_DAY * 30UL
-#define SECS_PER_MONTH_ODD		SECS_PER_DAY * 31UL
-
-#define LEAP_YEAR(Y)	(((BASE_YEAR + Y) > 0) && !((BASE_YEAR + Y) % 4) && (((BASE_YEAR + Y) % 100) || !((BASE_YEAR + Y) % 400)))
-
-const PROGMEM uint8_t MONTH_DAYS[] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
-const PROGMEM uint8_t SCHWERDTFEGER[] = { 0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4 };
-
-struct sDateTime
-{
-    uint16_t year;
-    uint8_t month;
-    uint8_t day;
-    uint8_t hour;
-    uint8_t minute;
-    uint8_t second;
-    uint8_t dayOfWeek;
-};
-
 struct sAlarmTime
 {
-    uint8_t day;
-    uint8_t hour;
-    uint8_t minute;
-    uint8_t second;
+    uint8_t Day;
+    uint8_t Hour;
+    uint8_t Minute;
+    uint8_t Second;
 };
 
 typedef enum
@@ -111,11 +84,7 @@ public:
     void SetDateTime(sDateTime & pDateTime); // Set the RTC's module to the given pDateTime
     void GetDateTime(sDateTime & pDateTime); // Get the RTC's module to the given pDateTime
 
-    static void ParseStrDateTime(sDateTime & pDateTime, char pStrDateTime[]); // Parse from ISO 8601 string format to sDateTime
-    static void ConvertToSeconds(uint32_t & pSeconds, sDateTime & pDateTime); // Convert from sDateTime to number of seconds since Jan 1st of 2000
-    static void ConvertToDateTime(sDateTime & pDateTime, uint32_t pSeconds); // Convert from number of seconds since beginning of 2000 to sDateTime
-
-    void SetAlarm1(uint8_t dydw, uint8_t hour, uint8_t minute, uint8_t second, eDS3231_alarm1_t mode, bool armed = true);
+    void SetAlarm1(uint8_t dydw, uint8_t Hour, uint8_t Minute, uint8_t Second, eDS3231_alarm1_t mode, bool armed = true);
     void GetAlarm1(sAlarmTime & pAlarmTime);
     void GetAlarmType1(eDS3231_alarm1_t & pDS3231_alarm1_t);
     bool IsAlarm1(bool clear = true);
@@ -123,7 +92,7 @@ public:
     bool IsArmed1(void);
     void ClearAlarm1(void);
 
-    void SetAlarm2(uint8_t dydw, uint8_t hour, uint8_t minute, eDS3231_alarm2_t mode, bool armed = true);
+    void SetAlarm2(uint8_t dydw, uint8_t Hour, uint8_t Minute, eDS3231_alarm2_t mode, bool armed = true);
     void GetAlarm2(sAlarmTime & pAlarmTime);
     void GetAlarmType2(eDS3231_alarm2_t & pDS3231_alarm2_t);
     bool IsAlarm2(bool clear = true);
@@ -159,8 +128,6 @@ private:
         Wire.send(data);
 #endif
     };
-
-    static uint8_t getDayOfWeek(uint16_t pYear, uint8_t pMonth, uint8_t pDay);
 
     static uint8_t bcd2dec(uint8_t bcd);
     static uint8_t dec2bcd(uint8_t dec);
